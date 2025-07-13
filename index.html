@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yandex Music Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .chart-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #4a5568;
+            text-align: center;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .chart-canvas {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: #e53e3e;
+            font-size: 1.2em;
+            background: rgba(254, 178, 178, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(254, 178, 178, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            color: #4a5568;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white !important;
+            ;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .table-wide {
+            grid-column: span 2;
+            /* занять 2 колонки */
+        }
+
+        .table-scroll-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .track-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 800px;
+        }
+
+        .track-table th,
+        .track-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .track-table th {
+            background-color: #f7fafc;
+            color: #4a5568;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .track-table tr:hover {
+            background-color: #edf2f7;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 40px;
+            padding: 20px 0;
+        }
+
+        .footer strong {
+            color: #fff;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+        }
+
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 Yandex Music Analytics Dashboard</h1>
+            <p>Анализ топ-100 треков Яндекс.Музыки</p>
+        </div>
+
+        <div class="loading" id="loading">
+            📊 Загрузка и обработка данных...
+        </div>
+
+        <div class="error" id="error" style="display: none;">
+            ❌ Ошибка загрузки данных. Попробуйте обновить страницу.
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="genreFilter">Жанр:</label>
+                    <select id="genreFilter">
+                        <option value="">Все жанры</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="explicitFilter">Контент:</label>
+                    <select id="explicitFilter">
+                        <option value="">Все</option>
+                        <option value="true">Explicit</option>
+                        <option value="false">Чистый</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="minListens">Мин. прослушиваний:</label>
+                    <input type="number" id="minListens" min="0" step="1000000" placeholder="0">
+                </div>
+                <div class="control-group">
+                    <label for="csvFile">Загрузить CSV:</label>
+                    <label class="btn" for="csvFile">Выбрать файл</label>
+                    <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
+                    <span id="fileName" style="font-size: 0.9em; margin-left: 5px;">Файл не выбран</span>
+                </div>
+
+
+                <button class="btn" onclick="applyFilters()">Применить фильтры</button>
+                <button class="btn" onclick="resetFilters()">Сбросить</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalTracks">0</div>
+                    <div class="stat-label">Всего треков</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalArtists">0</div>
+                    <div class="stat-label">Уникальные исполнители</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalGenres">0</div>
+                    <div class="stat-label">Жанры</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgDuration">0</div>
+                    <div class="stat-label">Средняя длительность</div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Топ жанров по популярности</div>
+                    <div class="chart-canvas">
+                        <canvas id="genreChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Топ исполнителей</div>
+                    <div class="chart-canvas">
+                        <canvas id="artistChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container table-wide">
+                    <div class="chart-title">Эффективность исполнителей</div>
+                    <div class="chart-canvas">
+                        <canvas id="artistEfficiencyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Распределение по длительности</div>
+                    <div class="chart-canvas">
+                        <canvas id="durationChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Explicit vs Чистый контент</div>
+                    <div class="chart-canvas">
+                        <canvas id="explicitChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Корреляция длительности и популярности</div>
+                    <div class="chart-canvas">
+                        <canvas id="scatterChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Динамика по позициям в чарте</div>
+                    <div class="chart-canvas">
+                        <canvas id="chartPositionChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container table-wide">
+                    <div class="chart-title">📋 Таблица треков</div>
+                    <div class="table-scroll-wrapper">
+                        <table id="tracksTable" class="track-table">
+                            <thead>
+                                <tr>
+                                    <th>Название</th>
+                                    <th>Артист</th>
+                                    <th>Жанр</th>
+                                    <th>Длительность</th>
+                                    <th>Прослушивания</th>
+                                    <th>Explicit</th>
+                                    <th>Ссылка</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let processedData = {};
+        let charts = {};
+
+        // Симуляция данных (замените на реальную загрузку с Kaggle)
+        async function loadCSVData(csvFile) {
+            return new Promise((resolve, reject) => {
+                Papa.parse('yandex_tracks_top100.csv', {
+                    download: true,
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function (results) {
+                        if (results.errors.length > 0) {
+                            console.error('Ошибки при парсинге CSV:', results.errors);
+                        } else {
+                            const cleanedData = results.data.map(row => {
+                                const cleanedRow = {};
+                                Object.keys(row).forEach(key => {
+                                    const cleanKey = key.trim();
+                                    cleanedRow[cleanKey] = row[key];
+                                });
+                                return cleanedRow;
+                            });
+
+                            processedData = processData(cleanedData);
+                            rawData = processedData.tracks;
+
+                            updateStats(processedData);
+                            updateFilters(processedData);
+                            createAllCharts(processedData);
+
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('dashboard').style.display = 'block';
+                        }
+                    },
+                    error: function (error) {
+                        console.error('Ошибка при загрузке CSV:', error);
+                        document.getElementById('error').style.display = 'block';
+                    }
+                });
+
+            });
+        }
+
+
+
+        // Функция для обработки загруженного файла
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+
+            try {
+                const csvData = await loadCSVData(file);
+
+
+                const cleanedData = csvData.map(row => {
+                    const cleanedRow = {};
+                    Object.keys(row).forEach(key => {
+                        const cleanKey = key.trim();
+                        cleanedRow[cleanKey] = row[key];
+                    });
+                    return cleanedRow;
+                });
+                console.log("Заголовки CSV:", Object.keys(cleanedData[0]));
+
+                processedData = processData(cleanedData);
+                rawData = processedData.tracks;
+
+                updateStats(processedData);
+                updateFilters(processedData);
+                createAllCharts(processedData);
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+            } catch (error) {
+                console.error('Ошибка при обработке файла:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+
+
+        function processData(data) {
+            const processed = {
+                tracks: data.map((track, index) => ({
+                    id: index + 1,
+                    name: track.name,
+                    artist: track['artist(s)'] || track['artist'] || '',
+                    genre: track.genre,
+                    chart: track.chart,
+                    duration: parseDuration(track.track_len || "0:00"),
+                    url: track.link,
+                    isExplicit: track.Explicit_content === 1,
+                    monthlyListens: track.monthly_listens_total,
+                    artistLikes: track.artists_likes_total || 0,
+                    chartPosition: index + 1
+                }))
+            };
+
+            // Группировка по жанрам
+            processed.genreStats = processed.tracks.reduce((acc, track) => {
+                if (!acc[track.genre]) {
+                    acc[track.genre] = {
+                        totalTracks: 0,
+                        totalListens: 0,
+                        avgListens: 0,
+                        explicitCount: 0,
+                        avgDuration: 0
+                    };
+                }
+                acc[track.genre].totalTracks++;
+                acc[track.genre].totalListens += track.monthlyListens;
+                acc[track.genre].explicitCount += track.isExplicit ? 1 : 0;
+                acc[track.genre].avgDuration += track.duration;
+                return acc;
+            }, {});
+
+            // Вычисление средних значений
+            Object.keys(processed.genreStats).forEach(genre => {
+                const stats = processed.genreStats[genre];
+                stats.avgListens = stats.totalListens / stats.totalTracks;
+                stats.avgDuration = stats.avgDuration / stats.totalTracks;
+                stats.explicitPercentage = (stats.explicitCount / stats.totalTracks) * 100;
+            });
+
+            // Группировка по исполнителям
+            processed.artistStats = processed.tracks.reduce((acc, track) => {
+                if (!acc[track.artist]) {
+                    acc[track.artist] = {
+                        totalTracks: 0,
+                        totalListens: 0,
+                        avgListens: 0,
+                        totalLikes: 0,
+                        genres: new Set()
+                    };
+                }
+                acc[track.artist].totalTracks++;
+                acc[track.artist].totalListens += track.monthlyListens;
+                acc[track.artist].totalLikes += track.artistLikes;
+                acc[track.artist].genres.add(track.genre);
+                return acc;
+            }, {});
+
+            Object.keys(processed.artistStats).forEach(artist => {
+                const stats = processed.artistStats[artist];
+                stats.avgListens = stats.totalListens / stats.totalTracks;
+                stats.genresDiversity = stats.genres.size;
+                stats.listenPerLikeRatio = stats.totalLikes > 0 ? stats.totalListens / stats.totalLikes : 0;
+            });
+
+            return processed;
+        }
+
+        function parseDuration(timeStr) {
+            if (!timeStr || typeof timeStr !== 'string' || !timeStr.includes(':')) return 0;
+            const parts = timeStr.trim().split(':');
+            const minutes = parseInt(parts[0], 10);
+            const seconds = parseInt(parts[1], 10);
+            if (isNaN(minutes) || isNaN(seconds)) return 0;
+            return minutes * 60 + seconds;
+        }
+
+
+
+        function updateStats(data) {
+            const totalTracks = data.tracks.length;
+            const uniqueArtists = new Set(data.tracks.map(t => t.artist)).size;
+            const uniqueGenres = new Set(data.tracks.map(t => t.genre)).size;
+            const avgDuration = data.tracks.reduce((sum, t) => sum + t.duration, 0) / totalTracks;
+
+            document.getElementById('totalTracks').textContent = totalTracks;
+            document.getElementById('totalArtists').textContent = uniqueArtists;
+            document.getElementById('totalGenres').textContent = uniqueGenres;
+            document.getElementById('avgDuration').textContent = `${Math.floor(avgDuration / 60)}:${(Math.floor(avgDuration % 60)).toString().padStart(2, '0')}`;
+        }
+
+        function updateFilters(data) {
+            const genreFilter = document.getElementById('genreFilter');
+            const genres = [...new Set(data.tracks.map(t => t.genre))].sort();
+
+            genreFilter.innerHTML = '<option value="">Все жанры</option>';
+            genres.forEach(genre => {
+                const option = document.createElement('option');
+                option.value = genre;
+                option.textContent = genre;
+                genreFilter.appendChild(option);
+            });
+        }
+
+        function createGenreChart(data) {
+            const ctx = document.getElementById('genreChart').getContext('2d');
+
+            const sortedGenres = Object.entries(data.genreStats)
+                .sort((a, b) => b[1].totalListens - a[1].totalListens)
+                .slice(0, 10);
+
+            charts.genreChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedGenres.map(([genre]) => genre),
+                    datasets: [{
+                        label: 'Общие прослушивания',
+                        data: sortedGenres.map(([, stats]) => stats.totalListens),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createArtistChart(data) {
+            const ctx = document.getElementById('artistChart').getContext('2d');
+
+            const sortedArtists = Object.entries(data.artistStats)
+                .sort((a, b) => b[1].totalListens - a[1].totalListens)
+                .slice(0, 10);
+
+            charts.artistChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedArtists.map(([artist]) => artist),
+                    datasets: [{
+                        label: 'Общие прослушивания',
+                        data: sortedArtists.map(([, stats]) => stats.totalListens),
+                        backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createArtistEfficiencyChart(data) {
+            const ctx = document.getElementById('artistEfficiencyChart').getContext('2d');
+
+            const sortedArtists = Object.entries(data.artistStats)
+                .filter(([_, stats]) => stats.totalLikes > 0)
+                .sort((a, b) => b[1].listenPerLikeRatio - a[1].listenPerLikeRatio)
+                .slice(0, 10);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedArtists.map(([artist]) => artist),
+                    datasets: [{
+                        label: 'Прослушиваний на 1 лайк',
+                        data: sortedArtists.map(([, stats]) => stats.listenPerLikeRatio.toFixed(2)),
+                        backgroundColor: 'rgba(255, 159, 64, 0.8)',
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Прослушиваний на 1 лайк'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDurationChart(data) {
+            const ctx = document.getElementById('durationChart').getContext('2d');
+
+            const durationBuckets = {
+                'Короткие (<3 мин)': 0,
+                'Средние (3-4 мин)': 0,
+                'Длинные (4-5 мин)': 0,
+                'Очень длинные (>5 мин)': 0
+            };
+
+            data.tracks.forEach(track => {
+                if (track.duration < 180) durationBuckets['Короткие (<3 мин)']++;
+                else if (track.duration < 240) durationBuckets['Средние (3-4 мин)']++;
+                else if (track.duration < 300) durationBuckets['Длинные (4-5 мин)']++;
+                else durationBuckets['Очень длинные (>5 мин)']++;
+            });
+
+            charts.durationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(durationBuckets),
+                    datasets: [{
+                        data: Object.values(durationBuckets),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 205, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 205, 86, 1)',
+                            'rgba(75, 192, 192, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createExplicitChart(data) {
+            const ctx = document.getElementById('explicitChart').getContext('2d');
+
+            const explicitCount = data.tracks.filter(t => t.isExplicit).length;
+            const cleanCount = data.tracks.length - explicitCount;
+
+            charts.explicitChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Чистый контент', 'Explicit контент'],
+                    datasets: [{
+                        data: [cleanCount, explicitCount],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(255, 99, 132, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createScatterChart(data) {
+            const ctx = document.getElementById('scatterChart').getContext('2d');
+
+            const scatterData = data.tracks.map(track => ({
+                x: track.duration,
+                y: track.monthlyListens,
+                genre: track.genre,
+                isExplicit: track.isExplicit
+            }));
+
+            charts.scatterChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Треки',
+                        data: scatterData,
+                        backgroundColor: function (context) {
+                            const point = context.parsed;
+                            return scatterData[context.dataIndex].isExplicit ?
+                                'rgba(255, 99, 132, 0.6)' : 'rgba(54, 162, 235, 0.6)';
+                        },
+                        borderColor: function (context) {
+                            const point = context.parsed;
+                            return scatterData[context.dataIndex].isExplicit ?
+                                'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)';
+                        },
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const track = data.tracks[context.dataIndex];
+                                    return `${track.name} - ${track.artist}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Длительность (секунды)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Месячные прослушивания'
+                            },
+                            ticks: {
+                                callback: function (value) {
+                                    return (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createChartPositionScatter(data) {
+            const ctx = document.getElementById('chartPositionChart').getContext('2d');
+
+            const colorMap = {};
+            const genreColors = [
+                'rgba(102, 126, 234, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(255, 205, 86, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+                'rgba(255, 159, 64, 0.8)',
+                'rgba(201, 203, 207, 0.8)'
+            ];
+            let genreIndex = 0;
+
+            const scatterData = data.tracks.map(track => {
+                if (!colorMap[track.genre]) {
+                    colorMap[track.genre] = genreColors[genreIndex % genreColors.length];
+                    genreIndex++;
+                }
+                return {
+                    x: track.chartPosition,
+                    y: track.monthlyListens,
+                    backgroundColor: colorMap[track.genre],
+                    genre: track.genre,
+                    name: track.name,
+                    artist: track.artist
+                };
+            });
+
+            const datasets = Object.entries(
+                scatterData.reduce((acc, point) => {
+                    if (!acc[point.genre]) acc[point.genre] = [];
+                    acc[point.genre].push(point);
+                    return acc;
+                }, {})
+            ).map(([genre, points]) => ({
+                label: genre,
+                data: points,
+                backgroundColor: points[0].backgroundColor
+            }));
+
+            charts.chartPositionChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const point = context.raw;
+                                    return `${point.name} - ${point.artist} (${point.genre})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Позиция в чарте'
+                            },
+                            ticks: {
+                                reverse: false,
+                                stepSize: 5
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Месячные прослушивания'
+                            },
+                            ticks: {
+                                callback: value => (value / 1e6).toFixed(1) + 'M'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        function destroyCharts() {
+            Object.values(charts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            charts = {};
+        }
+
+        function renderTracksTable(data) {
+            const tbody = document.querySelector('#tracksTable tbody');
+            tbody.innerHTML = '';
+
+            data.tracks.forEach(track => {
+                const tr = document.createElement('tr');
+
+                tr.innerHTML = `
+            <td>${track.name}</td>
+            <td>${track.artist}</td>
+            <td>${track.genre}</td>
+            <td>${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}</td>
+            <td>${(track.monthlyListens / 1e6).toFixed(2)}M</td>
+            <td>${track.isExplicit ? '🟥' : '🟩'}</td>
+            <td><a href="${track.url}" target="_blank">🔗</a></td>
+        `;
+
+                tbody.appendChild(tr);
+            });
+        }
+
+
+        function createAllCharts(data) {
+            destroyCharts();
+            createGenreChart(data);
+            createArtistChart(data);
+            createArtistEfficiencyChart(data);
+            createDurationChart(data);
+            createExplicitChart(data);
+            createScatterChart(data);
+            createChartPositionScatter(data);
+            renderTracksTable(data);
+        }
+
+        function applyFilters() {
+            const genreFilter = document.getElementById('genreFilter').value;
+            const explicitFilter = document.getElementById('explicitFilter').value;
+            const minListens = parseInt(document.getElementById('minListens').value) || 0;
+
+            let filteredTracks = rawData.slice();
+
+            if (genreFilter) {
+                filteredTracks = filteredTracks.filter(track => track.genre === genreFilter);
+            }
+
+            if (explicitFilter !== '') {
+                const isExplicit = explicitFilter === 'true';
+                filteredTracks = filteredTracks.filter(track => track.isExplicit === isExplicit);
+            }
+
+            if (minListens > 0) {
+                filteredTracks = filteredTracks.filter(track => track.monthlyListens >= minListens);
+            }
+
+            const filteredData = processData(filteredTracks.map(track => ({
+                name: track.name,
+                'artist(s)': track.artist,
+                genre: track.genre,
+                chart: track.chart,
+                track_len: `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}`,
+                link: track.url,
+                Explicit_content: track.isExplicit ? 1 : 0,
+                monthly_listens_total: track.monthlyListens,
+                artists_likes_total: track.artistLikes
+            })));
+
+            updateStats(filteredData);
+            createAllCharts(filteredData);
+        }
+
+        function resetFilters() {
+            document.getElementById('genreFilter').value = '';
+            document.getElementById('explicitFilter').value = '';
+            document.getElementById('minListens').value = '';
+
+            updateStats(processedData);
+            createAllCharts(processedData);
+        }
+
+        // Инициализация
+        function init() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+        }
+
+
+        // Запуск при загрузке страницы
+        window.addEventListener('load', init);
+    </script>
+</body>
+<footer class="footer">
+    <p>Создано <strong>Evgeniy_Zubkov</strong> © 2025</p>
+</footer>
+
+</html>
