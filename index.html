@@ -1053,7 +1053,47 @@
 
 
         // Запуск при загрузке страницы
-        window.addEventListener('load', init);
+        async function loadDefaultCSV() {
+            try {
+                const response = await fetch('yandex_tracks_top100.csv');
+                const csvText = await response.text();
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function (results) {
+                        const cleanedData = results.data.map(row => {
+                            const cleanedRow = {};
+                            Object.keys(row).forEach(key => {
+                                const cleanKey = key.trim();
+                                cleanedRow[cleanKey] = row[key];
+                            });
+                            return cleanedRow;
+                        });
+
+                        processedData = processData(cleanedData);
+                        rawData = processedData.tracks;
+
+                        updateStats(processedData);
+                        updateFilters(processedData);
+                        createAllCharts(processedData);
+
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('dashboard').style.display = 'block';
+                    }
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки дефолтного CSV:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        // Инициализация
+        window.addEventListener('load', () => {
+            loadDefaultCSV(); // ← загрузка CSV при открытии страницы
+        });
+
     </script>
 </body>
 <footer class="footer">
