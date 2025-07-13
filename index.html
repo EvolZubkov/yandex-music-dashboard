@@ -85,20 +85,6 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
 
-        .chart-canvas {
-            width: 100%;
-            height: auto !important;
-            min-height: 280px;
-            overflow-x: auto;
-            /* <-- позволит скролл при переполнении */
-        }
-
-        canvas {
-            max-width: 100% !important;
-            height: auto !important;
-            display: block;
-        }
-
         .header p {
             font-size: 1.2em;
             opacity: 0.9;
@@ -106,7 +92,7 @@
 
         .chart-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -136,7 +122,11 @@
             padding-bottom: 10px;
         }
 
-
+        .chart-canvas {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
 
         .loading {
             text-align: center;
@@ -295,28 +285,6 @@
 
 
         @media (max-width: 768px) {
-            .stat-card {
-                padding: 15px;
-            }
-
-            .chart-title {
-                font-size: 1.1em;
-            }
-
-            .btn {
-                width: 100%;
-                text-align: center;
-            }
-
-            .control-group {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .control-group label {
-                margin-bottom: 5px;
-            }
-
             .chart-grid {
                 grid-template-columns: 1fr;
             }
