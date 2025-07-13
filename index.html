@@ -8,6 +8,48 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
+        /* Базовая стилизация для десктопа */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* Адаптация под узкие экраны */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-container {
+                flex-direction: column;
+            }
+
+            .stat-box {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            canvas {
+                width: 100% !important;
+                height: auto !important;
+            }
+
+            .filters {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: space-between;
+            }
+
+            .filters select,
+            .filters input,
+            .filters button {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -43,6 +85,18 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
 
+        .chart-canvas {
+            position: relative;
+            height: auto !important;
+            min-height: 300px;
+            width: 100%;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+        }
+
         .header p {
             font-size: 1.2em;
             opacity: 0.9;
@@ -50,7 +104,7 @@
 
         .chart-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -243,6 +297,28 @@
 
 
         @media (max-width: 768px) {
+            .stat-card {
+                padding: 15px;
+            }
+
+            .chart-title {
+                font-size: 1.1em;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group label {
+                margin-bottom: 5px;
+            }
+
             .chart-grid {
                 grid-template-columns: 1fr;
             }
@@ -254,6 +330,10 @@
 
             .control-group {
                 justify-content: space-between;
+            }
+
+            .filters {
+                flex-direction: column;
             }
         }
     </style>
